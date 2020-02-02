@@ -9,6 +9,11 @@ module Template
   , raw
   , parseOnly
   , packed
+  , stringField
+  , listField
+  , trim
+  , anyBetween
+  , noMore 
   )
 where
 
@@ -66,12 +71,17 @@ raw = do
 
 between :: Text -> Text -> (String -> Fragment) -> Parser Fragment
 between startWith endWith construct = do
-  string startWith
-  inner <- anyCharTill endWith
-  string endWith
+  inner <- anyBetween startWith endWith 
   case inner of
     [] -> fail ""
     xs -> return $ construct $ trim inner
+
+anyBetween :: Text -> Text -> Parser String
+anyBetween startwith endwith = do
+  string startwith
+  inner <- anyCharTill endwith 
+  string endwith
+  return inner 
 
 trim :: String -> String
 trim list = case list of
@@ -98,6 +108,12 @@ data ContextValue =
   | ListValue [Context]
   | Template  String
   deriving(Show)
+
+stringField :: String -> String -> Context
+stringField key val = M.singleton key (StringValue val)
+
+listField :: String -> [Context] -> Context
+listField key val = M.singleton key (ListValue val)
 
 parse :: String -> Context -> String
 parse txt context = fst $ interpreter context template

@@ -1,7 +1,9 @@
 {-# Language OverloadedStrings #-}
 module Post
-  ( context
+  ( postCtx
   , Post.parse
+  , markdownToHtml
+  , Post
   )
 where
 
@@ -15,6 +17,19 @@ import           Data.Attoparsec.Combinator
 import qualified Template
 import qualified Data.Map                      as Map
 import qualified Data.Text                     as Text
+import           Text.Pandoc                    ( writeHtml5String
+                                                , readMarkdown
+                                                , runPure
+                                                , def
+                                                , ReaderOptions
+                                                , WriterOptions
+                                                , readerExtensions
+                                                , pandocExtensions
+                                                )
+--import qualified Text.Pandoc                   as P
+
+
+
 
 data Post = Post {sourceDir :: String
                  ,title     :: String
@@ -24,14 +39,18 @@ data Post = Post {sourceDir :: String
                  ,content   :: String
                  } deriving(Show)
 
-context :: Post -> Template.Context
-context p = Template.StringValue <$> Map.fromList
+postCtx :: Post -> Template.Context
+postCtx p = Template.StringValue <$> Map.fromList
   [ ("title"  , title p)
   , ("slug"   , slug p)
   , ("meta"   , meta p)
   , ("date"   , shortDate p)
   , ("content", content p)
   ]
+
+-- archive is a context of post grouped by year
+archiveCtx :: [Post] -> Template.Context
+archiveCtx posts = Template.listField "posts" $ map postCtx posts
 
 shortDate :: Post -> String
 shortDate p = showGregorian (date p)
@@ -64,15 +83,25 @@ parse dir slug content =
   let (header, body) = extractHeader content
       pTitle         = fromJust $ Map.lookup "title" header
       pMeta          = fromJust $ Map.lookup "meta" header
-      pDate          = undefined
+      pDate          = readDate $ fromJust $ Map.lookup "date" header 
   in  Post { sourceDir = dir
            , title     = pTitle
            , slug      = slug
            , meta      = pMeta
            , date      = pDate
-           , content   = body
+           , content   = markdownToHtml body
            }
 
+readDate :: String -> Day 
+readDate d = undefined 
 
-readPost :: String -> String -> Post
-readPost = undefined
+markdownToHtml :: String -> String
+markdownToHtml content = case runPure txt of
+  Right html -> Text.unpack html
+  Left  err  -> show err
+ where
+  rOpt = def { readerExtensions = pandocExtensions } :: ReaderOptions
+  wOpt = def :: WriterOptions
+  txt  = do
+    markdown <- readMarkdown rOpt (Text.pack content)
+    writeHtml5String wOpt markdown

@@ -26,6 +26,9 @@ dependencies:
 - containers >= 0.6.0.1
 - hspec >= 2.7.1
 - time >= 1.8.0.2
+- pandoc >= 2.7.3
+- directory >= 1.1.0.2
+- filepath >= 1.4.2.1
 
 library:
   source-dirs: src

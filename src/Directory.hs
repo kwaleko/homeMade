@@ -95,5 +95,9 @@ cleanOutputDir config = do
         let path  = dDir </> file 
         isFile <- doesFileExist path 
         if isFile
-          then removeFile path  >> (putStrLn  $ "file " ++ file ++ " is removed")
-          else removeDirectoryRecursive path  >> (putStrLn  $"directory " ++ file ++ " is removed")  
+          then do
+          removeFile path
+          putStrLn  $ "file " ++ file ++ " is removed"
+          else do
+          removeDirectoryRecursive path
+          putStrLn  $"directory " ++ file ++ " is removed"

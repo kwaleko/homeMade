@@ -73,8 +73,4 @@ writePage destDir template context = do
   createDirectoryIfMissing True destDir
   writeFile destFile file
 
-defaultConfig = Config { sourceDir = "/Users/lambda/dev/source"
-                       , destDir   = "/Users/lambda/dev/webserver"
-                       , templates = "templates"
-                       , markdown  = "posts"
-                       }
+

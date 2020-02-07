@@ -8,13 +8,17 @@ import           System.Directory               ( getDirectoryContents
                                                 , listDirectory
                                                 , doesFileExist
                                                 , createDirectoryIfMissing
+                                                , removeFile
+                                                , removeDirectoryRecursive
+                                                , doesDirectoryExist
                                                 )
 import           Control.Monad                  ( forM
                                                 , forM_
+                                                , when
                                                 )
 import           Control.Monad.IO.Class         ( liftIO )
 import           System.FilePath                ( (</>) )
-
+import           Control.Concurrent.Async       ( concurrently_ )
 
 data Config = Config {sourceDir :: FilePath
                      ,destDir   :: FilePath
@@ -57,13 +61,14 @@ writeArchive config = do
 
 writePost :: Config -> Post.Post -> IO ()
 writePost config post = do
-  let dDir         = destDir config
-      sDir         = sourceDir config
-      fullPath     = dDir </> Post.url post
+  let dDir             = destDir config
+      sDir             = sourceDir config
+      fullPath         = dDir </> Post.url post
       postTemplatePath = sDir </> templates config </> "post.html"
-      postCtx      = Post.postCtx post
-  postTemplate <- readFile postTemplatePath 
+      postCtx          = Post.postCtx post
+  postTemplate <- readFile postTemplatePath
   writePage fullPath postTemplate postCtx
+
 -- Given a destination directory, a template and a context
 -- generate an HTML page
 writePage :: FilePath -> Template -> Template.Context -> IO ()
@@ -73,4 +78,22 @@ writePage destDir template context = do
   createDirectoryIfMissing True destDir
   writeFile destFile file
 
+genHtml :: Config -> IO ()
+genHtml config = concurrently_
+  (writeArchive config)
+  (writePosts config)
 
+cleanOutputDir :: Config -> IO ()
+cleanOutputDir config = do
+  let dDir = destDir config
+  putStrLn dDir 
+  exists <-doesDirectoryExist dDir
+  when exists $ do
+      files <- listDirectory dDir 
+      forM_ files $ \file -> do
+        putStrLn $ " checking " ++ file ++ "..."
+        let path  = dDir </> file 
+        isFile <- doesFileExist path 
+        if isFile
+          then removeFile path  >> (putStrLn  $ "file " ++ file ++ " is removed")
+          else removeDirectoryRecursive path  >> (putStrLn  $"directory " ++ file ++ " is removed")  

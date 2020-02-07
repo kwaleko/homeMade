@@ -115,6 +115,9 @@ stringField key val = M.singleton key (StringValue val)
 listField :: String -> [Context] -> Context
 listField key val = M.singleton key (ListValue val)
 
+-- given a template and context
+-- substitue the context in the template
+-- and generate a string with the HTML output
 parse :: String -> Context -> String
 parse txt context = fst $ interpreter context template
  where

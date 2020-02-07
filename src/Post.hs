@@ -1,12 +1,15 @@
 {-# Language OverloadedStrings #-}
 module Post
   ( postCtx
+  , archiveCtx
   , Post.parse
-  , markdownToHtml
+  --, markdownToHtml
   , Post
+  , url
   )
 where
 
+import Types
 import           Data.Maybe
 import           Data.Time                      ( Day
                                                 , showGregorian
@@ -26,6 +29,7 @@ import           Text.Pandoc                    ( writeHtml5String
                                                 , readerExtensions
                                                 , pandocExtensions
                                                 )
+import           System.FilePath                ( (</>) )
 --import qualified Text.Pandoc                   as P
 
 
@@ -43,11 +47,14 @@ postCtx :: Post -> Template.Context
 postCtx p = Template.StringValue <$> Map.fromList
   [ ("title"  , title p)
   , ("slug"   , slug p)
+  , ("url"    , url p)
   , ("meta"   , meta p)
   , ("date"   , shortDate p)
   , ("content", content p)
   ]
 
+url :: Post -> String
+url p = sourceDir p
 -- archive is a context of post grouped by year
 archiveCtx :: [Post] -> Template.Context
 archiveCtx posts = Template.listField "posts" $ map postCtx posts
@@ -78,13 +85,13 @@ heading = do
     let (key, val) = break (== ':') line
     return (Template.trim key, tail val)
 
-parse :: FilePath -> String -> String -> Post
+parse :: FilePath -> Slug -> String -> Post
 parse dir slug content =
   let (header, body) = extractHeader content
       pTitle         = fromJust $ Map.lookup "title" header
       pMeta          = fromJust $ Map.lookup "meta" header
-      pDate          = readDate $ fromJust $ Map.lookup "date" header 
-  in  Post { sourceDir = dir
+      pDate          = readDate $ fromJust $ Map.lookup "date" header
+  in  Post { sourceDir = slug
            , title     = pTitle
            , slug      = slug
            , meta      = pMeta
@@ -92,8 +99,8 @@ parse dir slug content =
            , content   = markdownToHtml body
            }
 
-readDate :: String -> Day 
-readDate d = undefined 
+readDate :: String -> Day
+readDate d = fromGregorian 2018 12 12
 
 markdownToHtml :: String -> String
 markdownToHtml content = case runPure txt of

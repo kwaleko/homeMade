@@ -12,12 +12,12 @@ import           System.Directory               ( getDirectoryContents
                                                 , removeDirectoryRecursive
                                                 , doesDirectoryExist
                                                 , copyFile
-                                               
                                                 )
 import           Control.Monad                  ( forM
                                                 , forM_
                                                 , when
                                                 )
+import Control.Monad(when)
 import           Control.Monad.IO.Class         ( liftIO )
 import           System.FilePath                ( (</>) )
 import           Control.Concurrent.Async       ( concurrently_ )
@@ -49,16 +49,16 @@ readTemplates :: Config -> IO (Map.Map String String)
 readTemplates config = do
   let sDir = sourceDir config </> templates config
   --print sDir  
-  templates <- listDirectory sDir 
+  templates <- listDirectory sDir
   fmap Map.fromList $ forM templates $ \template -> do
     --print template 
     templateContent <- readFile $ sDir </> template
-    return (template,templateContent)
-   
+    return (template, templateContent)
+
 
 mkGlobalContext :: Config -> IO Template.Context
-mkGlobalContext config  = do
-  css <-  readFile  $  sourceDir config   </> "styles.css"
+mkGlobalContext config = do
+  css <- readFile $ sourceDir config </> "styles.css"
   return $ Map.singleton "styles.css" (Template.Template css)
 
 
@@ -76,11 +76,12 @@ writeArchive config = do
       dDir        = destDir config
       arcTemplate = sDir </> templates config </> "archive.html"
       mdPosts     = sDir </> markdown config
-  posts    <- readArchive mdPosts
-  template <- readFile arcTemplate
-  globalTemplates <- readTemplates config 
-  let allCtx = Map.union  (Post.archiveCtx posts) (Template.Template <$>  globalTemplates )
-  writePage dDir template  allCtx 
+  posts           <- readArchive mdPosts
+  template        <- readFile arcTemplate
+  globalTemplates <- readTemplates config
+  let allCtx = Map.union (Post.archiveCtx posts)
+                         (Template.Template <$> globalTemplates)
+  writePage dDir template allCtx
 
 writePost :: Config -> Post.Post -> IO ()
 writePost config post = do
@@ -89,9 +90,10 @@ writePost config post = do
       fullPath         = dDir </> Post.url post
       postTemplatePath = sDir </> templates config </> "post.html"
       postCtx          = Post.postCtx post
-  postTemplate <- readFile postTemplatePath
-  globalTemplates <- readTemplates config 
-  let  allCtx = Map.union  (Post.postCtx post) (Template.Template <$>  globalTemplates )
+  postTemplate    <- readFile postTemplatePath
+  globalTemplates <- readTemplates config
+  let allCtx =
+        Map.union (Post.postCtx post) (Template.Template <$> globalTemplates)
   writePage fullPath postTemplate allCtx
 
 -- Given a destination directory, a template and a context
@@ -110,7 +112,7 @@ writePage destDir template context = do
 genHtml :: Config -> IO ()
 genHtml config = do
   cleanOutputDir config
-  migrateCss config 
+  migrateCss config
   concurrently_ (writeArchive config) (writePosts config)
 
 cleanOutputDir :: Config -> IO ()
@@ -134,9 +136,12 @@ cleanOutputDir config = do
 
 migrateCss :: Config -> IO ()
 migrateCss config = do
-  let cssFile = "styles.css"
-      sPath = sourceDir config </> templates config </> cssFile
-      dPath = destDir config  </> cssFile
-  print sPath
-  print dPath 
-  copyFile sPath dPath 
+  let sPath = sourceDir config </> templates config
+      dPath = destDir config
+      split lst = map (break (== '.')) lst
+  files <- listDirectory sPath
+  forM_ files $ \file -> do
+    let (_, ext) = break (== '.') file
+    when ( tail ext == "css")  $ do
+        copyFile (sPath </> file) (dPath </> file)
+        print $ "Css file : " ++ file ++ " copied"
